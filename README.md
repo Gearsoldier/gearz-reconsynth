@@ -1,72 +1,81 @@
-ChatGPT said:
-Absolutely — here’s your polished README for GEARZ ReconSynth, rewritten for clarity and professionalism while keeping your cyberpunk/AI vibe intact. Includes full setup instructions for both Ollama and OpenAI users:
-
-markdown
-Copy
-Edit
 # 🧠 GEARZ ReconSynth
 
-GEARZ ReconSynth is an AI-powered reconnaissance engine built for bug bounty hunters, red teamers, and OSINT pros. Just input a company name or domain — and ReconSynth will scan public data for subdomains, leaks, employee info, and exposed GitHub assets, then use AI to prioritize the most exploitable targets.
+GEARZ ReconSynth is a local Next.js interface for an authorized domain-reconnaissance workflow. It runs ProjectDiscovery's subfinder to enumerate subdomains, passes the results to ProjectDiscovery's httpx for HTTP probing, and displays the combined report in the browser.
 
----
+Built with Next.js 14, React, TypeScript, Tailwind CSS, and react-markdown.
 
-## ⚙️ Setup
+## Current functionality
 
-### 1. Clone the Repo
+1. Accept a domain through the web interface
+2. Run subfinder on that domain
+3. If subdomains are returned, probe them with httpx
+4. Display the command output as a Markdown report
+
+The active API route imports [`lib/recon.ts`](lib/recon.ts). A separate [`lib/ai.ts`](lib/ai.ts) contains an Ollama-based analysis variant, but the route does not call it. AI analysis and hosted OpenAI support are not part of the current application flow.
+
+Employee discovery, breach-dump analysis, and GitHub secret scanning are also not implemented.
+
+## Important security limitation
+
+**Keep this prototype local and trusted-only.** The current backend interpolates the submitted target into a shell command. Its API validates only that the input is a nonempty string, which leaves a command-injection risk. Do not expose the app to untrusted users or accept copied, unreviewed input.
+
+Use only a plain domain that you own or are explicitly authorized to assess. The form mentions company names, but the implemented command expects a domain. Input validation, safer process invocation, authentication, and resource limits need work before shared deployment.
+
+httpx makes network requests to discovered hosts. Confirm that the discovered subdomains are included in your authorization before running this workflow.
+
+## Requirements
+
+- Node.js and npm compatible with the locked Next.js 14.2.30 release
+- [ProjectDiscovery subfinder](https://docs.projectdiscovery.io/opensource/subfinder/install)
+- [ProjectDiscovery httpx](https://docs.projectdiscovery.io/opensource/httpx/install)
+
+Install the two external tools using their official instructions and make both executables available on the `PATH` inherited by the Next.js server. The Python HTTPX library is a different project and does not supply the expected recon tool.
+
+Check that the correct tools are available without starting a scan:
+
+```bash
+subfinder -version
+httpx -version
+```
+
+Ollama and an OpenAI API key are not required by the active route. Reconnaissance requires network access.
+
+## Local setup
 
 ```bash
 git clone https://github.com/Gearsoldier/gearz-reconsynth.git
 cd gearz-reconsynth
-npm install
-2. Run the App
-bash
-Copy
-Edit
-npm run dev
-Open http://localhost:3000 in your browser.
+npm ci
+npm run dev -- --hostname 127.0.0.1
+```
 
-🤖 AI Backend Options (Choose One)
-Option A: Use Ollama (Local AI)
-Install Ollama and pull the LLaMA3 model locally:
+Open [http://localhost:3000](http://localhost:3000), enter an authorized plain domain, and select **Begin Recon**. The report includes subfinder output and, when subdomains are found, httpx output. Errors from the toolchain are returned in the report.
 
-🪟 Windows
-powershell
-Copy
-Edit
-winget install Ollama.Ollama
-ollama run llama3
-🍎 macOS
-bash
-Copy
-Edit
-brew install ollama
-ollama run llama3
-🐧 Linux
-bash
-Copy
-Edit
-curl -fsSL https://ollama.com/install.sh | sh
-ollama run llama3
-Ollama will run locally at http://localhost:11434.
+Run the app in an environment that supports Node.js child processes and the required command-line tools. A static export or browser-only host cannot execute this backend.
 
-Option B: Use OpenAI API (Cloud)
-Add your API key to the environment:
+## Project structure
 
-bash
-Copy
-Edit
-export OPENAI_API_KEY=sk-...
-You can edit lib/ai.ts to switch between local (Ollama) or OpenAI endpoints.
+- [`app/page.tsx`](app/page.tsx): target form and Markdown report
+- [`app/api/recon/route.ts`](app/api/recon/route.ts): POST endpoint and basic input check
+- [`lib/recon.ts`](lib/recon.ts): active subfinder → httpx pipeline
+- [`lib/ai.ts`](lib/ai.ts): separate, currently unwired Ollama analysis variant
+- [`package.json`](package.json): dependencies and scripts
 
-🔍 Features
-🌐 Domain & subdomain OSINT
+## Development commands
 
-🕵️ Credential & breach dump analysis
+- `npm run dev`: start the development server
+- `npm run build`: create a production build
+- `npm run start -- --hostname 127.0.0.1`: serve an existing build locally
 
-📂 GitHub repo + key exposure scanning
+There are no dedicated test or lint scripts and no automated test suite in this repository. A successful build would not verify the external reconnaissance tools, target authorization, or the security of the API.
 
-🧠 AI prioritization of attack paths
+## Troubleshooting
 
-🧪 Instant results, no setup required
+- **Command not found:** check that subfinder and ProjectDiscovery httpx are installed and visible to the server process
+- **No subdomains found:** the pipeline stops before HTTP probing; this is not proof that the domain has no other assets
+- **No AI section:** expected with the current route; the Ollama variant is not wired into it
+- **Large or slow jobs:** the pipeline uses buffered shell commands and has no job queue, cancellation UI, or explicit per-command timeout configuration
 
-🦾 Works offline with Ollama
+## Responsible use
+
+Run reconnaissance only within an explicit, current authorization. Review the scope of every discovered host and follow the relevant program or organization's testing rules. Treat reports as unverified observations rather than proof of a vulnerability.
