@@ -1,5 +1,3 @@
-ChatGPT said:
-Absolutely — here’s your polished README for GEARZ ReconSynth, rewritten for clarity and professionalism while keeping your cyberpunk/AI vibe intact. Includes full setup instructions for both Ollama and OpenAI users:
 
 markdown
 Copy
